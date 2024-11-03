@@ -128,7 +128,7 @@ impl TaskManager {
             inner.tasks[next].task_status = TaskStatus::Running;
             inner.current_task = next;
             // update start time
-            if(inner.tasks[next].start_time == 0){
+            if inner.tasks[next].start_time == 0 {
                 inner.tasks[next].start_time = get_time_ms() as u64;
             }
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
@@ -181,7 +181,7 @@ pub fn exit_current_and_run_next() {
 /// Get current task TCB
 pub fn get_current_taskControlBlock() -> TaskControlBlock {
     let inner = TASK_MANAGER.inner.exclusive_access();
-    &inner.tasks[inner.current_task].clone()
+    inner.tasks[inner.current_task].clone()
 }   
 
 /// update syscall times
