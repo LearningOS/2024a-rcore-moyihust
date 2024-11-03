@@ -179,7 +179,7 @@ pub fn exit_current_and_run_next() {
 }
 
 /// Get current task TCB
-pub fn get_current_taskControlBlock() -> TaskControlBlock {
+pub fn get_current_task_control_block() -> TaskControlBlock {
     let inner = TASK_MANAGER.inner.exclusive_access();
     inner.tasks[inner.current_task].clone()
 }   
