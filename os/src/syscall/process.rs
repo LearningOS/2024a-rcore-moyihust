@@ -2,7 +2,8 @@
 use crate::{
     config::MAX_SYSCALL_NUM,
     task::{
-        change_program_brk, exit_current_and_run_next, suspend_current_and_run_next, TaskStatus,current_user_token
+        change_program_brk, exit_current_and_run_next, suspend_current_and_run_next, TaskStatus,current_user_token,get_current_task_status, 
+        get_current_task_syscall_times, get_current_task_start_time, get_current_task_id,
     },
     mm::page_table::translated_byte_buffer,
     timer::get_time_us,
@@ -72,8 +73,28 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
 /// HINT: You might reimplement it with virtual memory management.
 /// HINT: What if [`TaskInfo`] is splitted by two pages ?
 pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
-    trace!("kernel: sys_task_info NOT IMPLEMENTED YET!");
-    -1
+    // trace!("kernel: sys_task_info NOT IMPLEMENTED YET!");
+    let dst_vec = translated_byte_buffer(
+        current_user_token(),
+        _ti as *const u8, core::mem::size_of::<TaskInfo>()
+    );
+    let current_time=get_time_ms();
+    let ref task_info = TaskInfo {
+        status: get_current_task_status(),
+        syscall_times: get_current_task_syscall_times(),
+        time: current_time-get_current_task_start_time(),
+    };
+    let src_ptr = task_info as *const TaskInfo;
+    for (idx, dst) in dst_vec.into_iter().enumerate() {
+        let unit_len = dst.len();
+        unsafe {
+            dst.copy_from_slice(core::slice::from_raw_parts(
+                src_ptr.wrapping_byte_add(idx * unit_len) as *const u8,
+                unit_len)
+            );
+        }
+    }
+    0
 }
 
 // YOUR JOB: Implement mmap.

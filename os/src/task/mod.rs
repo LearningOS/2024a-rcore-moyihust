@@ -21,7 +21,7 @@ use alloc::vec::Vec;
 use lazy_static::*;
 use switch::__switch;
 pub use task::{TaskControlBlock, TaskStatus};
-
+use crate::config::MAX_SYSCALL_NUM
 pub use context::TaskContext;
 
 /// The task manager, where all the tasks are managed.
@@ -79,6 +79,7 @@ impl TaskManager {
         let mut inner = self.inner.exclusive_access();
         let next_task = &mut inner.tasks[0];
         next_task.task_status = TaskStatus::Running;
+        next_task.start_time = crate::trap::get_time_ms();
         let next_task_cx_ptr = &next_task.task_cx as *const TaskContext;
         drop(inner);
         let mut _unused = TaskContext::zero_init();
@@ -140,6 +141,10 @@ impl TaskManager {
             let mut inner = self.inner.exclusive_access();
             let current = inner.current_task;
             inner.tasks[next].task_status = TaskStatus::Running;
+            //lab2 record start time
+            if inner.tasks[next].start_time == 0 {
+                inner.tasks[next].start_time = crate::trap::get_time_ms();
+            }
             inner.current_task = next;
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
@@ -201,4 +206,34 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
 /// Change the current 'Running' task's program break
 pub fn change_program_brk(size: i32) -> Option<usize> {
     TASK_MANAGER.change_current_program_brk(size)
+}
+
+///lab2 Get the current 'Running' task's status.
+pub fn get_current_task_status()->TaskStatus{
+    let inner = TASK_MANAGER.inner.exclusive_access();
+    inner.tasks.get(inner.current_task).unwrap().task_status
+}
+
+///lab2 Get the current 'Running' task's start time.
+pub fn get_current_task_start_time()->usize{
+    let inner = TASK_MANAGER.inner.exclusive_access();
+    inner.tasks.get(inner.current_task).unwrap().start_time
+}
+
+///lab2 Get the current 'Running' task's id.
+pub fn get_current_task_id()->usize{
+    let inner = TASK_MANAGER.inner.exclusive_access();
+    inner.current_task
+}
+
+///lab2 Get the current 'Running' task's syscall count.
+pub fn get_current_task_syscall_count()->[u32;MAX_SYSCALL_NUM]{
+    let inner = TASK_MANAGER.inner.exclusive_access();
+    inner.tasks.get(inner.current_task).unwrap().syscall_times
+}
+
+///lab2 Update the current 'Running' task's syscall count.
+pub fn update_current_task_syscall_count(syscall_id:usize){
+    let mut inner = TASK_MANAGER.inner.exclusive_access();
+    inner.tasks.get_mut(inner.current_task).unwrap().syscall_times[syscall_id]+=1;
 }
