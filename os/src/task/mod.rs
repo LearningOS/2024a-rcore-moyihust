@@ -21,7 +21,8 @@ use alloc::vec::Vec;
 use lazy_static::*;
 use switch::__switch;
 pub use task::{TaskControlBlock, TaskStatus};
-use crate::config::MAX_SYSCALL_NUM
+use crate::config::MAX_SYSCALL_NUM;
+use crate::timer::get_time_ms;
 pub use context::TaskContext;
 
 /// The task manager, where all the tasks are managed.
@@ -79,7 +80,7 @@ impl TaskManager {
         let mut inner = self.inner.exclusive_access();
         let next_task = &mut inner.tasks[0];
         next_task.task_status = TaskStatus::Running;
-        next_task.start_time = crate::trap::get_time_ms();
+        next_task.start_time = get_time_ms();
         let next_task_cx_ptr = &next_task.task_cx as *const TaskContext;
         drop(inner);
         let mut _unused = TaskContext::zero_init();
@@ -143,7 +144,7 @@ impl TaskManager {
             inner.tasks[next].task_status = TaskStatus::Running;
             //lab2 record start time
             if inner.tasks[next].start_time == 0 {
-                inner.tasks[next].start_time = crate::trap::get_time_ms();
+                inner.tasks[next].start_time = get_time_ms();
             }
             inner.current_task = next;
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
@@ -235,5 +236,6 @@ pub fn get_current_task_syscall_count()->[u32;MAX_SYSCALL_NUM]{
 ///lab2 Update the current 'Running' task's syscall count.
 pub fn update_current_task_syscall_count(syscall_id:usize){
     let mut inner = TASK_MANAGER.inner.exclusive_access();
-    inner.tasks.get_mut(inner.current_task).unwrap().syscall_times[syscall_id]+=1;
+    let current = inner.current_task;
+    inner.tasks[current].syscall_times[syscall_id] += 1;
 }
