@@ -14,6 +14,7 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
+use crate::mm::{VirtPageNum, PageTableEntry, VirtAddr, MapPermission};
 use crate::loader::{get_app_data, get_num_app};
 use crate::sync::UPSafeCell;
 use crate::trap::TrapContext;
@@ -238,4 +239,19 @@ pub fn update_current_task_syscall_count(syscall_id:usize){
     let mut inner = TASK_MANAGER.inner.exclusive_access();
     let current = inner.current_task;
     inner.tasks[current].syscall_times[syscall_id] += 1;
+}
+
+/// lab2 get current task page table
+pub fn get_current_task_page_table(vpn:VirtPageNum)->Option<PageTableEntry>{
+    let inner = TASK_MANAGER.inner.exclusive_access();
+    let current=inner.current_task;
+    inner.tasks[current].memory_set.translate(vpn)
+}
+
+/// lab2 mmap create new mapArea
+pub fn create_new_map_area(start_va:VirtAddr,end_va:VirtAddr,perm:MapPermission)
+{
+    let mut inner = TASK_MANAGER.inner.exclusive_access();
+    let current=inner.current_task;
+    inner.tasks[current].memory_set.insert_framed_area(start_va,end_va,perm);
 }
