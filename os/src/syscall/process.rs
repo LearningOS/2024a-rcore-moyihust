@@ -4,9 +4,9 @@ use alloc::sync::Arc;
 use crate::{
     config::{MAX_SYSCALL_NUM, PAGE_SIZE,MAXVA},
     task::{
-        change_program_brk, exit_current_and_run_next, suspend_current_and_run_next, TaskStatus,current_user_token,get_current_task_status, 
-        get_current_task_syscall_count, get_current_task_start_time,get_current_task_page_table,create_new_map_area,unmap_consecutive_area,
-        add_task, current_task, current_user_token,
+         exit_current_and_run_next, suspend_current_and_run_next, TaskStatus,current_user_token,
+        add_task, current_task,get_current_task_status,get_current_task_start_time,get_current_task_syscall_times,
+        get_current_task_page_table,create_new_map_area,unmap_consecutive_area
     },
     mm::page_table::translated_byte_buffer,
     timer::{get_time_us,get_time_ms},
@@ -157,7 +157,7 @@ pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
     let current_time=get_time_ms();
     let ref task_info = TaskInfo {
         status: get_current_task_status(),
-        syscall_times: get_current_task_syscall_count(),
+        syscall_times: get_current_task_syscall_times(),
         time: current_time-get_current_task_start_time(),
     };
     let src_ptr = task_info as *const TaskInfo;
