@@ -10,6 +10,7 @@ use alloc::sync::{Arc, Weak};
 use alloc::vec;
 use alloc::vec::Vec;
 use core::cell::RefMut;
+use crate::config::MAX_SYSCALL_NUM;
 
 /// Task control block structure
 ///
@@ -23,7 +24,7 @@ pub struct TaskControlBlock {
     pub kernel_stack: KernelStack,
 
     /// Mutable
-    inner: UPSafeCell<TaskControlBlockInner>,
+    pub inner: UPSafeCell<TaskControlBlockInner>,
 }
 
 impl TaskControlBlock {
@@ -38,6 +39,7 @@ impl TaskControlBlock {
     }
 }
 
+/// tcb inner
 pub struct TaskControlBlockInner {
     /// The physical page number of the frame where the trap context is placed
     pub trap_cx_ppn: PhysPageNum,
@@ -71,6 +73,19 @@ pub struct TaskControlBlockInner {
 
     /// Program break
     pub program_brk: usize,
+
+    /// Start time of the task
+    pub start_time: usize,
+
+    /// Syscall times
+    pub syscall_times: [u32; MAX_SYSCALL_NUM],
+
+    /// Stride
+    pub stride: u64,
+
+    /// priority
+    pub priority: u64,
+
 }
 
 impl TaskControlBlockInner {
@@ -83,9 +98,11 @@ impl TaskControlBlockInner {
     fn get_status(&self) -> TaskStatus {
         self.task_status
     }
+    /// is dead?
     pub fn is_zombie(&self) -> bool {
         self.get_status() == TaskStatus::Zombie
     }
+<<<<<<< HEAD
     pub fn alloc_fd(&mut self) -> usize {
         if let Some(fd) = (0..self.fd_table.len()).find(|fd| self.fd_table[*fd].is_none()) {
             fd
@@ -93,6 +110,12 @@ impl TaskControlBlockInner {
             self.fd_table.push(None);
             self.fd_table.len() - 1
         }
+=======
+
+    /// get start time
+    pub fn get_start_time(&self) -> usize {
+        self.start_time 
+>>>>>>> 4707d38 (feat:lab3 ch5)
     }
 }
 
@@ -135,6 +158,10 @@ impl TaskControlBlock {
                     ],
                     heap_bottom: user_sp,
                     program_brk: user_sp,
+                    start_time:0,
+                    syscall_times: [0; MAX_SYSCALL_NUM],
+                    stride: 0,
+                    priority: 16,
                 })
             },
         };
@@ -177,6 +204,57 @@ impl TaskControlBlock {
         // **** release current PCB
     }
 
+    /// set priority
+    pub fn set_priority(&self, prio: isize)->isize{
+        let mut inner = self.inner_exclusive_access();
+        inner.priority = prio as u64;
+        inner.priority as isize
+    }
+
+    /// spawn a new process
+    pub fn spawn(self:&Arc<TaskControlBlock>,elf_data: &[u8])->Arc<TaskControlBlock>{
+        let mut parent_inner=self.inner_exclusive_access();// 来自fork
+        let (memory_set,user_sp,entry_point)=MemorySet::from_elf(elf_data); //来自exec
+        let trap_cx_ppn=memory_set.translate(VirtAddr::from(TRAP_CONTEXT_BASE).into()).unwrap().ppn();//来自exec
+        let pid_handle=pid_alloc();//来自fork
+        let kernel_stack=kstack_alloc();//分配新的内核栈
+        let kernel_stack_top=kernel_stack.get_top();
+        let task_control_block=Arc::new(Self{
+            pid:pid_handle,
+            kernel_stack,
+            inner:unsafe{
+                UPSafeCell::new(TaskControlBlockInner { 
+                    trap_cx_ppn, 
+                    base_size: user_sp, 
+                    task_cx: TaskContext::goto_trap_return(kernel_stack_top), 
+                    task_status: TaskStatus::Ready, 
+                    memory_set, 
+                    parent: Some(Arc::downgrade(self)), 
+                    children: Vec::new(), 
+                    exit_code: 0, 
+                    heap_bottom: user_sp, 
+                    program_brk: user_sp, 
+                    start_time:0,
+                    syscall_times: [0; MAX_SYSCALL_NUM],
+                    stride: 0,
+                    priority: 16,
+                })
+            },
+        });
+        parent_inner.children.push(task_control_block.clone());
+        let trap_cx=task_control_block.inner_exclusive_access().get_trap_cx();
+        *trap_cx=TrapContext::app_init_context(
+          entry_point, 
+          user_sp, 
+          KERNEL_SPACE.exclusive_access().token(),
+          kernel_stack_top, 
+          trap_handler as usize
+        );
+
+        task_control_block
+    }
+
+
     /// parent process fork the child process
     pub fn fork(self: &Arc<TaskControlBlock>) -> Arc<TaskControlBlock> {
         // ---- hold parent PCB lock
@@ -216,6 +294,10 @@ impl TaskControlBlock {
                     fd_table: new_fd_table,
                     heap_bottom: parent_inner.heap_bottom,
                     program_brk: parent_inner.program_brk,
+                    start_time:0,
+                    syscall_times: [0; MAX_SYSCALL_NUM],
+                    stride: 0,
+                    priority: 16,
                 })
             },
         });
@@ -229,6 +311,8 @@ impl TaskControlBlock {
         task_control_block
         // **** release child PCB
         // ---- release parent PCB
+
+        
     }
 
     /// get pid of process

@@ -114,4 +114,15 @@ impl KernelStack {
         let (_, kernel_stack_top) = kernel_stack_position(self.0);
         kernel_stack_top
     }
+    /// create a new KernelStack with pid
+    pub fn new(pid_handle:&PidHandle)->Self{
+        let kstack_id=pid_handle.0;
+        let (kstack_bottom,kstack_top)=kernel_stack_position(kstack_id);
+        KERNEL_SPACE.exclusive_access().insert_framed_area(
+            kstack_bottom.into(),
+            kstack_top.into(),
+            MapPermission::R|MapPermission::W
+        );
+        KernelStack(kstack_id)
+    }
 }
