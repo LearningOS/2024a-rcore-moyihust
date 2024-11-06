@@ -3,7 +3,7 @@ use crate::{
     config::{MAX_SYSCALL_NUM, PAGE_SIZE,MAXVA},
     task::{
         change_program_brk, exit_current_and_run_next, suspend_current_and_run_next, TaskStatus,current_user_token,get_current_task_status, 
-        get_current_task_syscall_count, get_current_task_start_time,get_current_task_page_table,create_new_map_area
+        get_current_task_syscall_count, get_current_task_start_time,get_current_task_page_table,create_new_map_area,unmap_consecutive_area,
     },
     mm::page_table::translated_byte_buffer,
     timer::{get_time_us,get_time_ms},
@@ -105,6 +105,7 @@ pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
     _port &!0x7!=0||
     _port &0x7==0||
     _start>=MAXVA{
+        trace!("kernel: sys_mmap invalid args");
         return -1;
     }
     let start_va:VirtPageNum=VirtAddr::from(_start).floor();
@@ -117,6 +118,7 @@ pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
             }
         }
     }
+    trace!("kernel: sys_mmap start:{:#x} len:{:#x} port:{:#x}",_start,_len,_port);
     create_new_map_area(
         start_va.into(),
         end_va.into(),
@@ -127,8 +129,18 @@ pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
 
 // YOUR JOB: Implement munmap.
 pub fn sys_munmap(_start: usize, _len: usize) -> isize {
-    trace!("kernel: sys_munmap NOT IMPLEMENTED YET!");
-    -1
+    // trace!("kernel: sys_munmap NOT IMPLEMENTED YET!");
+    if _start>=MAXVA||_start%PAGE_SIZE!=0{
+        trace!("kernel: sys_munmap invalid args");
+        return -1;
+    }
+
+    let mut mlen=_len;
+    if _start>MAXVA-mlen{
+        mlen=MAXVA-_start;
+    }
+    println!("kernel: sys_munmap start:{:#x} len:{:#x}",_start,mlen);
+    unmap_consecutive_area(_start,mlen)
 }
 /// change data segment size
 pub fn sys_sbrk(size: i32) -> isize {

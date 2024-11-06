@@ -14,7 +14,8 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
-use crate::mm::{VirtPageNum, PageTableEntry, VirtAddr, MapPermission};
+use core::usize;
+use crate::mm::{VirtPageNum, PageTableEntry, VirtAddr, MapPermission,VPNRange};
 use crate::loader::{get_app_data, get_num_app};
 use crate::sync::UPSafeCell;
 use crate::trap::TrapContext;
@@ -254,4 +255,24 @@ pub fn create_new_map_area(start_va:VirtAddr,end_va:VirtAddr,perm:MapPermission)
     let mut inner = TASK_MANAGER.inner.exclusive_access();
     let current=inner.current_task;
     inner.tasks[current].memory_set.insert_framed_area(start_va,end_va,perm);
+}
+
+/// lab2 munmap area
+pub fn unmap_consecutive_area(start:usize,len:usize)->isize{
+    let mut inner = TASK_MANAGER.inner.exclusive_access();
+    let current=inner.current_task;
+    let start_va=VirtAddr::from(start).floor();
+    let end_va=VirtAddr::from(start+len).ceil();
+    let vpns=VPNRange::new(start_va,end_va);
+    for vpn in vpns{
+        if let Some(pte)=inner.tasks[current].memory_set.translate(vpn){
+            if !pte.is_valid(){
+                return -1;
+            }
+            inner.tasks[current].memory_set.get_page_table().unmap(vpn);
+        }else{
+            return -1;
+        }
+    }
+    0
 }
