@@ -32,7 +32,7 @@ use crate::mm::{VirtPageNum, PageTableEntry, VirtAddr, MapPermission,VPNRange};
 use lazy_static::*;
 pub use manager::{fetch_task, TaskManager};
 use switch::__switch;
-pub use task::{TaskControlBlock, TaskStatus};
+pub use task::{TaskControlBlock, TaskControlBlockInner,TaskStatus};
 use crate::config::MAX_SYSCALL_NUM;
 
 pub use context::TaskContext;
