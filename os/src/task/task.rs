@@ -77,6 +77,12 @@ pub struct TaskControlBlockInner {
     /// Syscall times
     pub syscall_times: [u32; MAX_SYSCALL_NUM],
 
+    /// Stride
+    pub stride: u64,
+
+    /// priority
+    pub priority: u64,
+
 }
 
 impl TaskControlBlockInner {
@@ -135,6 +141,8 @@ impl TaskControlBlock {
                     program_brk: user_sp,
                     start_time:0,
                     syscall_times: [0; MAX_SYSCALL_NUM],
+                    stride: 0,
+                    priority: 16,
                 })
             },
         };
@@ -179,6 +187,13 @@ impl TaskControlBlock {
         // **** release inner automatically
     }
 
+    /// set priority
+    pub fn set_priority(&self, prio: isize)->isize{
+        let mut inner = self.inner_exclusive_access();
+        inner.priority = prio as u64;
+        inner.priority as isize
+    }
+
     /// spawn a new process
     pub fn spawn(self:&Arc<TaskControlBlock>,elf_data: &[u8])->Arc<TaskControlBlock>{
         let mut parent_inner=self.inner_exclusive_access();// 来自fork
@@ -204,6 +219,8 @@ impl TaskControlBlock {
                     program_brk: user_sp, 
                     start_time:0,
                     syscall_times: [0; MAX_SYSCALL_NUM],
+                    stride: 0,
+                    priority: 16,
                 })
             },
         });
@@ -252,6 +269,8 @@ impl TaskControlBlock {
                     program_brk: parent_inner.program_brk,
                     start_time:0,
                     syscall_times: [0; MAX_SYSCALL_NUM],
+                    stride: 0,
+                    priority: 16,
                 })
             },
         });
