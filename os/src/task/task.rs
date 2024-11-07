@@ -66,6 +66,7 @@ pub struct TaskControlBlockInner {
 
     /// It is set when active exit or execution error occurs
     pub exit_code: i32,
+    /// file descriptor table
     pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
 
     /// Heap bottom
@@ -89,9 +90,11 @@ pub struct TaskControlBlockInner {
 }
 
 impl TaskControlBlockInner {
+    /// Get the mutable reference of the trap context
     pub fn get_trap_cx(&self) -> &'static mut TrapContext {
         self.trap_cx_ppn.get_mut()
     }
+    /// Get the address of app's page table
     pub fn get_user_token(&self) -> usize {
         self.memory_set.token()
     }
@@ -102,7 +105,7 @@ impl TaskControlBlockInner {
     pub fn is_zombie(&self) -> bool {
         self.get_status() == TaskStatus::Zombie
     }
-<<<<<<< HEAD
+    /// alloc a new fd
     pub fn alloc_fd(&mut self) -> usize {
         if let Some(fd) = (0..self.fd_table.len()).find(|fd| self.fd_table[*fd].is_none()) {
             fd
@@ -110,13 +113,12 @@ impl TaskControlBlockInner {
             self.fd_table.push(None);
             self.fd_table.len() - 1
         }
-=======
-
+    }
     /// get start time
     pub fn get_start_time(&self) -> usize {
         self.start_time 
->>>>>>> 4707d38 (feat:lab3 ch5)
     }
+
 }
 
 impl TaskControlBlock {
@@ -238,6 +240,11 @@ impl TaskControlBlock {
                     syscall_times: [0; MAX_SYSCALL_NUM],
                     stride: 0,
                     priority: 16,
+                    fd_table: vec![
+                        Some(Arc::new(Stdin)),
+                        Some(Arc::new(Stdout)),
+                        Some(Arc::new(Stdout)),
+                    ],
                 })
             },
         });
