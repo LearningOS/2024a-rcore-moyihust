@@ -179,6 +179,48 @@ impl TaskControlBlock {
         // **** release inner automatically
     }
 
+    /// spawn a new process
+    pub fn spawn(self:&Arc<TaskControlBlock>,elf_data: &[u8])->Arc<TaskControlBlock>{
+        let mut parent_inner=self.inner_exclusive_access();// 来自fork
+        let (memory_set,user_sp,entry_point)=MemorySet::from_elf(elf_data); //来自exec
+        let trap_cx_ppn=memory_set.translate(VirtAddr::from(TRAP_CONTEXT_BASE).into()).unwrap().ppn();//来自exec
+        let pid_handle=pid_alloc();//来自fork
+        let kernel_stack=kstack_alloc();//分配新的内核栈
+        let kernel_stack_top=kernel_stack.get_top();
+        let task_control_block=Arc::new(Self{
+            pid:pid_handle,
+            kernel_stack,
+            inner:unsafe{
+                UPSafeCell::new(TaskControlBlockInner { 
+                    trap_cx_ppn, 
+                    base_size: user_sp, 
+                    task_cx: TaskContext::goto_trap_return(kernel_stack_top), 
+                    task_status: TaskStatus::Ready, 
+                    memory_set, 
+                    parent: Some(Arc::downgrade(self)), 
+                    children: Vec::new(), 
+                    exit_code: 0, 
+                    heap_bottom: user_sp, 
+                    program_brk: user_sp, 
+                    start_time:0,
+                    syscall_times: [0; MAX_SYSCALL_NUM],
+                })
+            },
+        });
+        parent_inner.children.push(task_control_block.clone());
+        let trap_cx=task_control_block.inner_exclusive_access().get_trap_cx();
+        *trap_cx=TrapContext::app_init_context(
+          entry_point, 
+          user_sp, 
+          KERNEL_SPACE.exclusive_access().token(),
+          kernel_stack_top, 
+          trap_handler as usize
+        );
+
+        task_control_block
+    }
+
+
     /// parent process fork the child process
     pub fn fork(self: &Arc<Self>) -> Arc<Self> {
         // ---- access parent PCB exclusively
@@ -223,6 +265,8 @@ impl TaskControlBlock {
         task_control_block
         // **** release child PCB
         // ---- release parent PCB
+
+        
     }
 
     /// get pid of process

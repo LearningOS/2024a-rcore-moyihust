@@ -178,10 +178,9 @@ pub fn unmap_consecutive_area(start:usize,len:usize)->isize{
                 return -1;
             }
             inner.memory_set.get_page_table().unmap(vpn);
-        
-    }else{
-        return -1;
+        }else{
+            return -1;
+        }
     }
-}
     0    
 }
