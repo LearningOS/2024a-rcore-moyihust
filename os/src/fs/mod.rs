@@ -29,6 +29,10 @@ pub trait File: Send + Sync+AnyConvert {
     fn read(&self, buf: UserBuffer) -> usize;
     /// write to the file from buf, return the number of bytes written
     fn write(&self, buf: UserBuffer) -> usize;
+    /// get inode of the file
+    fn get_inode_id(&self)->usize;
+    /// get nlink of the file
+    fn get_nlink(&self)->usize;
 }
 
 /// The stat of a inode
@@ -60,5 +64,5 @@ bitflags! {
     }
 }
 
-pub use inode::{list_apps, open_file, OSInode, OpenFlags,ROOT_INODE};
+pub use inode::{list_apps, open_file, OSInode, OpenFlags,ROOT_INODE,increase_nlink,decrease_nlink};
 pub use stdio::{Stdin, Stdout};
